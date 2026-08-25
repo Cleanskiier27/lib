@@ -10,8 +10,8 @@ app.MapGet("/api/activity", () => Results.Ok(Array.Empty<object>()));
 
 app.MapGet("/api/license/status", () => Results.Ok(new { status = "inactive", expiresAt = (string?)null }));
 
-// TODO: replace with real signal strength telemetry from the VPN daemon.
-app.MapGet("/api/signal", () => Results.Ok(new { strength = 0, status = "warn" }));
+// TODO: replace with real connection/session data from the VPN daemon.
+app.MapGet("/api/connections", () => Results.Ok(Array.Empty<object>()));
 
 app.MapPost("/api/license/activate", (LicenseActivationRequest request) =>
 {
