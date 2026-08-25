@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alpha VPN - License</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; }
+    header { padding: 24px 32px; background: #1e293b; }
+    h1 { margin: 0; font-size: 1.5rem; }
+    main { padding: 24px 32px; max-width: 640px; }
+    nav a { color: #93c5fd; margin-right: 16px; text-decoration: none; }
+    .card { background: #1e293b; border-radius: 8px; padding: 20px; margin-top: 16px; }
+    label { display: block; margin-bottom: 6px; color: #94a3b8; }
+    input[type=text] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 10px 18px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    #result { margin-top: 12px; }
+    .valid { color: #4ade80; }
+    .invalid { color: #f87171; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Alpha VPN — License</h1>
+    <nav>
+      <a href="/activity.html">Activity</a>
+      <a href="/license.html">License</a>
+      <a href="/monitor.html">Monitor</a>
+    </nav>
+  </header>
+  <main>
+    <div class="card">
+      <label for="license-key">License Key</label>
+      <input type="text" id="license-key" placeholder="XXXX-XXXX-XXXX-XXXX" />
+      <button id="activate-btn">Activate</button>
+      <div id="result"></div>
+    </div>
+    <div class="card">
+      <p><strong>Status:</strong> <span id="license-status">Unknown</span></p>
+      <p><strong>Expires:</strong> <span id="license-expiry">-</span></p>
+    </div>
+  </main>
+  <script>
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/license/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('license-status').textContent = data.status || 'Unknown';
+        document.getElementById('license-expiry').textContent = data.expiresAt || '-';
+      } catch (e) {
+        // API not available yet
+      }
+    }
+
+    document.getElementById('activate-btn').addEventListener('click', async function () {
+      const key = document.getElementById('license-key').value.trim();
+      const result = document.getElementById('result');
+      if (!key) {
+        result.innerHTML = '<span class="invalid">Enter a license key.</span>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/license/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: key })
+        });
+        const data = await res.json().catch(function () { return {}; });
+        if (res.ok) {
+          result.innerHTML = '<span class="valid">License activated.</span>';
+          checkStatus();
+        } else {
+          result.innerHTML = '<span class="invalid">' + (data.message || 'Activation failed.') + '</span>';
+        }
+      } catch (e) {
+        result.innerHTML = '<span class="invalid">Unable to reach license server.</span>';
+      }
+    });
+
+    checkStatus();
+  </script>
+</body>
+</html>

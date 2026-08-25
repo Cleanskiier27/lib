@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alpha VPN - Activity</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; }
+    header { padding: 24px 32px; background: #1e293b; }
+    h1 { margin: 0; font-size: 1.5rem; }
+    main { padding: 24px 32px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; font-weight: 600; }
+    .status-ok { color: #4ade80; }
+    .status-warn { color: #facc15; }
+    nav a { color: #93c5fd; margin-right: 16px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Alpha VPN — Activity</h1>
+    <nav>
+      <a href="/activity.html">Activity</a>
+      <a href="/license.html">License</a>
+      <a href="/monitor.html">Monitor</a>
+    </nav>
+  </header>
+  <main>
+    <p>Recent connection activity for this device.</p>
+    <table id="activity-table">
+      <thead>
+        <tr><th>Date/Time</th><th>Server</th><th>Duration</th><th>Data Used</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <!-- Populated by /api/activity when available -->
+      </tbody>
+    </table>
+    <p id="activity-empty" style="color:#94a3b8;">No activity data loaded yet.</p>
+  </main>
+  <script>
+    async function loadActivity() {
+      try {
+        const res = await fetch('/api/activity');
+        if (!res.ok) return;
+        const items = await res.json();
+        const body = document.querySelector('#activity-table tbody');
+        const empty = document.getElementById('activity-empty');
+        if (!Array.isArray(items) || items.length === 0) return;
+        empty.style.display = 'none';
+        body.innerHTML = items.map(function (i) {
+          return '<tr><td>' + i.timestamp + '</td><td>' + i.server + '</td><td>' + i.duration +
+            '</td><td>' + i.dataUsed + '</td><td class="status-' + (i.status === 'ok' ? 'ok' : 'warn') +
+            '">' + i.status + '</td></tr>';
+        }).join('');
+      } catch (e) {
+        // API not available yet; keep static placeholder
+      }
+    }
+    loadActivity();
+  </script>
+</body>
+</html>
