@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alpha VPN - Response Team</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; background: #05070f; color: #e2e8f0; margin: 0; }
+    header { padding: 24px 32px; background: #1e293b; display: flex; align-items: center; justify-content: space-between; }
+    h1 { margin: 0; font-size: 1.5rem; }
+    nav a { color: #93c5fd; margin-right: 16px; text-decoration: none; }
+    main { padding: 24px 32px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; font-weight: 600; }
+    .risk-high { color: #f87171; font-weight: 700; }
+    .risk-med { color: #facc15; font-weight: 700; }
+    .risk-low { color: #4ade80; font-weight: 700; }
+    .status-badge { padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; text-transform: uppercase; }
+    .status-unidentified { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    .status-blocked { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+    .status-escalated { background: rgba(250, 204, 21, 0.15); color: #facc15; }
+    .status-dismissed { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    button { padding: 4px 10px; margin-right: 4px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+    .btn-block { background: #dc2626; color: #fff; }
+    .btn-escalate { background: #ca8a04; color: #fff; }
+    .btn-dismiss { background: #334155; color: #e2e8f0; }
+    button:hover { opacity: 0.85; }
+    #empty { color: #94a3b8; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Alpha VPN — Response Team</h1>
+    <nav>
+      <a href="/activity.html">Activity</a>
+      <a href="/license.html">License</a>
+      <a href="/monitor.html">Monitor</a>
+      <a href="/response-team.html">Response Team</a>
+    </nav>
+  </header>
+  <main>
+    <p>Unidentified users and sessions flagged in the system. Review and take action.</p>
+    <table id="users-table">
+      <thead>
+        <tr><th>IP Address</th><th>First Seen</th><th>Location</th><th>Risk</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p id="empty">No unidentified users currently flagged.</p>
+  </main>
+  <script>
+    function riskClass(score) {
+      if (score >= 70) return 'risk-high';
+      if (score >= 40) return 'risk-med';
+      return 'risk-low';
+    }
+
+    async function action(id, verb) {
+      try {
+        await fetch('/api/unidentified-users/' + id + '/' + verb, { method: 'POST' });
+      } catch (e) {
+        // request failed; table will just refresh with prior state
+      }
+      loadUsers();
+    }
+
+    function renderRow(u) {
+      return '<tr>' +
+        '<td>' + u.ipAddress + '</td>' +
+        '<td>' + u.firstSeen + '</td>' +
+        '<td>' + u.location + '</td>' +
+        '<td class="' + riskClass(u.riskScore) + '">' + u.riskScore + '</td>' +
+        '<td><span class="status-badge status-' + u.status + '">' + u.status + '</span></td>' +
+        '<td>' +
+        '<button class="btn-block" onclick="action(\'' + u.id + '\',\'block\')">Block</button>' +
+        '<button class="btn-escalate" onclick="action(\'' + u.id + '\',\'escalate\')">Escalate</button>' +
+        '<button class="btn-dismiss" onclick="action(\'' + u.id + '\',\'dismiss\')">Dismiss</button>' +
+        '</td>' +
+        '</tr>';
+    }
+
+    async function loadUsers() {
+      const body = document.querySelector('#users-table tbody');
+      const empty = document.getElementById('empty');
+      try {
+        const res = await fetch('/api/unidentified-users');
+        if (!res.ok) return;
+        const users = await res.json();
+        if (!Array.isArray(users) || users.length === 0) {
+          body.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        body.innerHTML = users.map(renderRow).join('');
+      } catch (e) {
+        // API not available yet; keep placeholder
+      }
+    }
+
+    loadUsers();
+    setInterval(loadUsers, 10000);
+  </script>
+</body>
+</html>
