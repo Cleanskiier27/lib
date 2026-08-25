@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alpha VPN - Monitor</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; background: #05070f; color: #e2e8f0; margin: 0; }
+    header { padding: 24px 32px; background: #1e293b; display: flex; align-items: center; justify-content: space-between; }
+    h1 { margin: 0; font-size: 1.5rem; }
+    nav a { color: #93c5fd; margin-right: 16px; text-decoration: none; }
+    main { display: flex; gap: 24px; padding: 24px 32px; }
+    #globe-wrap { position: relative; flex: 0 0 auto; }
+    #stars { position: absolute; inset: 0; z-index: 0; }
+    #globe { position: relative; z-index: 1; }
+    #sidebar { flex: 1; min-width: 260px; }
+    .card { background: #1e293b; border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
+    .conn-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; }
+    .conn-item:last-child { border-bottom: none; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+    .dot-ok { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .dot-warn { background: #facc15; box-shadow: 0 0 6px #facc15; }
+    #count { color: #94a3b8; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Alpha VPN — Global Monitor</h1>
+    <nav>
+      <a href="/activity.html">Activity</a>
+      <a href="/license.html">License</a>
+      <a href="/monitor.html">Monitor</a>
+    </nav>
+  </header>
+  <main>
+    <div id="globe-wrap">
+      <canvas id="stars" width="520" height="520"></canvas>
+      <canvas id="globe" width="520" height="520"></canvas>
+    </div>
+    <div id="sidebar">
+      <div class="card">
+        <div id="count">Loading connections…</div>
+        <div id="conn-list"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const globeCanvas = document.getElementById('globe');
+    const gctx = globeCanvas.getContext('2d');
+    const starCanvas = document.getElementById('stars');
+    const sctx = starCanvas.getContext('2d');
+    const R = 200;
+    const CX = globeCanvas.width / 2;
+    const CY = globeCanvas.height / 2;
+    let rotation = 0;
+    let connections = [];
+
+    function drawStars() {
+      sctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+      sctx.fillStyle = '#05070f';
+      sctx.fillRect(0, 0, starCanvas.width, starCanvas.height);
+      for (let i = 0; i < 160; i++) {
+        const x = Math.random() * starCanvas.width;
+        const y = Math.random() * starCanvas.height;
+        const r = Math.random() * 1.2;
+        sctx.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random() * 0.6) + ')';
+        sctx.beginPath();
+        sctx.arc(x, y, r, 0, Math.PI * 2);
+        sctx.fill();
+      }
+    }
+
+    // Project lat/lng (degrees) + rotation onto the visible sphere. Returns null if on the far side.
+    function project(lat, lng) {
+      const phi = (lat * Math.PI) / 180;
+      const theta = ((lng + rotation) * Math.PI) / 180;
+      const x = Math.cos(phi) * Math.sin(theta);
+      const y = Math.sin(phi);
+      const z = Math.cos(phi) * Math.cos(theta);
+      if (z < 0) return null;
+      return { x: CX + x * R, y: CY - y * R, z: z };
+    }
+
+    function drawGlobe() {
+      gctx.clearRect(0, 0, globeCanvas.width, globeCanvas.height);
+
+      const grad = gctx.createRadialGradient(CX - 60, CY - 60, 20, CX, CY, R);
+      grad.addColorStop(0, '#1e3a5f');
+      grad.addColorStop(1, '#05070f');
+      gctx.fillStyle = grad;
+      gctx.beginPath();
+      gctx.arc(CX, CY, R, 0, Math.PI * 2);
+      gctx.fill();
+      gctx.strokeStyle = 'rgba(147, 197, 253, 0.35)';
+      gctx.stroke();
+
+      gctx.strokeStyle = 'rgba(147, 197, 253, 0.25)';
+      for (let lat = -60; lat <= 60; lat += 30) {
+        gctx.beginPath();
+        let started = false;
+        for (let lng = 0; lng <= 360; lng += 4) {
+          const p = project(lat, lng);
+          if (!p) { started = false; continue; }
+          if (!started) { gctx.moveTo(p.x, p.y); started = true; }
+          else gctx.lineTo(p.x, p.y);
+        }
+        gctx.stroke();
+      }
+      for (let lng = 0; lng < 360; lng += 30) {
+        gctx.beginPath();
+        let started = false;
+        for (let lat = -90; lat <= 90; lat += 4) {
+          const p = project(lat, lng);
+          if (!p) { started = false; continue; }
+          if (!started) { gctx.moveTo(p.x, p.y); started = true; }
+          else gctx.lineTo(p.x, p.y);
+        }
+        gctx.stroke();
+      }
+
+      connections.forEach(function (c) {
+        const p = project(c.lat, c.lng);
+        if (!p) return;
+        gctx.beginPath();
+        gctx.fillStyle = c.status === 'ok' ? '#4ade80' : '#facc15';
+        gctx.shadowColor = gctx.fillStyle;
+        gctx.shadowBlur = 8;
+        gctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        gctx.fill();
+        gctx.shadowBlur = 0;
+      });
+    }
+
+    function renderSidebar() {
+      document.getElementById('count').textContent = connections.length + ' active connection(s)';
+      document.getElementById('conn-list').innerHTML = connections.map(function (c) {
+        return '<div class="conn-item"><span><span class="dot dot-' + (c.status === 'ok' ? 'ok' : 'warn') +
+          '"></span>' + c.label + '</span><span>' + c.status + '</span></div>';
+      }).join('');
+    }
+
+    async function loadConnections() {
+      try {
+        const res = await fetch('/api/connections');
+        if (!res.ok) return;
+        connections = await res.json();
+        renderSidebar();
+      } catch (e) {
+        // API not available yet; globe still renders empty
+      }
+    }
+
+    function tick() {
+      rotation = (rotation + 0.15) % 360;
+      drawGlobe();
+      requestAnimationFrame(tick);
+    }
+
+    drawStars();
+    loadConnections();
+    setInterval(loadConnections, 10000);
+    tick();
+  </script>
+</body>
+</html>
