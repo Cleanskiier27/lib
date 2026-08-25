@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "lib",
+			"path": "../../../../../../../../../../.cache/linux-6.8.13/lib"
+		}
+	],
+	"settings": {
+		"dotnet.defaultSolution": "lib/alpha+vpn.slnx"
+	}
+}
